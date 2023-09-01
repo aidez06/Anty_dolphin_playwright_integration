@@ -1,0 +1,8 @@
+# Ignore cache files
+.cache/
+
+# Ignore .env files
+.env
+
+# Ignore env files
+*.env
