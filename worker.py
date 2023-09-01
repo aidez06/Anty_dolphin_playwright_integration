@@ -21,6 +21,7 @@ class Worker:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=False)
             context = browser.new_context()
+            
             if os.path.exists(f"{self._username}.pkl"):
                 #loadout cookies into the playwright
                 with open(f"{self._username}.pkl", 'rb') as pickle_file:
@@ -64,19 +65,100 @@ class Worker:
                 except Exception as e:
                     logging.debug(e)
             page = context.new_page()
-            page.goto(os.getenv("MY_URL"))
+            page.set_viewport_size({"width": 1600, "height": 1200})
+            print(os.getenv("MY_URL"))
+            page.goto("https://steamcommunity.com/openid/login?openid.claimed_id=http://specs.openid.net/auth/2.0/identifier_select&openid.identity=http://specs.openid.net/auth/2.0/identifier_select&openid.mode=checkid_setup&openid.ns=http://specs.openid.net/auth/2.0&openid.realm=https://csfloat.app&openid.return_to=https://csfloat.app/return")
 
 
             """Logged on and Automation task On"""
             page.click("input.btn_green_white_innerfade")
+            page.wait_for_selector("span:has-text('Successfully logged into CSFloat')",timeout=200000)
+
+            page.wait_for_selector('a[href="/db"]', timeout=200000)
+
             page.click('a[href="/db"]')
             
-            
+            page.wait_for_selector('input.mat-input-element[formcontrolname="name"]', timeout=200000)
             # Find the input element and fill in a value
             input_selector = 'input.mat-input-element[formcontrolname="name"]'
-            page.fill(input_selector, "AWP | Dragon Lore")
+            page.fill(input_selector, "Karambit")
+            page.keyboard.press("Enter")
 
-if __name__ == "__main__":
-    # Create a Worker instance and run it
-    worker = Worker("your_username", "your_password", "your_otp_code")
-    worker.run()
+
+            page.fill('input[formcontrolname="maxAge"]',str(7))
+            page.click("span.button-text")
+
+
+            filter_items = """let intervalId; // Declare a variable to hold the interval ID
+            function extractSteamIdFromUrl(url) {
+            const matches = url.match(/profiles\/(\d+)/);
+            if (matches && matches.length > 1) {
+                return matches[1];
+            }
+            return null;
+            }
+            function autoScrollPage() {
+            const rowsWithHistory = document.querySelectorAll('tr[role="row"]');
+            
+            
+            const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+            const scrollAmount = vh * 20; // Scroll down by 1% of the viewport height
+            
+            const number_items = document.querySelectorAll('td.mat-cell.cdk-cell.cdk-column-rank.mat-column-rank.ng-star-inserted');
+            const lastNumberItems = number_items.length - 1;
+            const total =   number_items[lastNumberItems].innerHTML.match(/\d+/g).map(Number);
+            
+            const count_numbers = document.getElementsByClassName('mat-card mat-focus-indicator count ng-star-inserted')[0].innerText.match(/\d+/g).map(Number).join('');
+            if (parseInt(count_numbers) === parseInt(total[0])) {
+                clearInterval(intervalId); // Clear the interval when the condition is met
+                const rowsArray = Array.from(rowsWithHistory);
+                rowsArray.forEach((row) => {
+                const userprofile = row.querySelector('a.playerAvatar.online');
+                if(userprofile){
+                    const href = userprofile.getAttribute('href');
+                    if (href.startsWith("https://steamcommunity.com/profiles/") && href.includes("/inventory")) {
+                    const steamId = extractSteamIdFromUrl(href);
+            
+                    if (steamId) {
+                        fetch(`http://localhost:8000/api?url=${steamId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data !== null) {  // Check if data is not null
+                            const steamProfileUrl = `https://steamcommunity.com/profiles/${data.steam_id}`;
+                            console.log(steamProfileUrl);
+                            }
+                        })
+                    }
+                    }
+                }
+                });
+
+
+            } else {
+                window.scrollBy(0, scrollAmount); // Scroll down if the condition is not met
+                console.log("Scrolling down");
+            }
+            // Convert the NodeList to an array
+            const rowsArray = Array.from(rowsWithHistory);
+            
+            // Remove rows containing the word "history"
+            rowsArray.forEach((row) => {
+                if (row.innerText.includes('history')) {
+                row.remove();
+                }
+                
+                const linkElement = row.querySelector('a.playerAvatar.offline');
+                    if (linkElement) {
+                        // Remove the parent element of linkElement
+                        row.remove();
+                }
+            
+            
+            });
+            
+            }
+            
+            // Call the autoScrollPage function every 5 seconds
+            intervalId = setInterval(autoScrollPage, 5000);"""
+            page.evaluate(filter_items)
+     
